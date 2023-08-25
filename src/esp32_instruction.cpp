@@ -28,9 +28,25 @@ uint16_t endian_swap_16(uint16_t n){
 }
 
 /* -------- INSTRUCTIONS --------- */
+void esp32_instruction_X(uint8_t* memory, esp32_status_t* status){
+
+}
+
+void esp32_instruction_OR(uint8_t* memory, esp32_status_t* status){
+    status->a[(status->instruction >> 12) & 0x0f] =
+        status->a[(status->instruction >> 8) & 0x0f] |
+        status->a[(status->instruction >> 4) & 0x0f];
+    status->program_counter += 3;
+}
+
+void esp32_instruction_RSIL(uint8_t* memory, esp32_status_t* status){
+    std::cout << "[WARN] RSIL NOT IMPLEMENTED" << std::endl;
+    status->program_counter += 3;
+}
 
 void esp32_instruction_L32R(uint8_t* memory, esp32_status_t* status){
     // TODO: LITBASE
+    std::cout << "[WARN] L32R half implemented" << std::endl;
     status->vAddr = ((status->instruction >> 8) << 2) | (0b11111111111111 << 18);
     status->vAddr += (status->program_counter + 3 >> 2 << 2);
     status->vAddr -= 0xccff00; // TODO: wtf?
@@ -40,14 +56,50 @@ void esp32_instruction_L32R(uint8_t* memory, esp32_status_t* status){
 }
 
 void esp32_instruction_CALL8(uint8_t* memory, esp32_status_t* status){
-    status->program_counter = (status->program_counter>>2<<2) + (int16_t)((status->instruction >> 6)+1 << 2);
+    std::cout << "[WARN] CALL8 half implemented" << std::endl;
+    status->temp = status->instruction >> 6;
+    if(status->temp >> 17 & 1 == 1){
+        status->temp |= 0xfff << 18;
+    }
+    status->temp++;
+    status->program_counter = (status->program_counter >> 2 ) + status->temp << 2;
+}
+
+void esp32_instruction_J(uint8_t* memory, esp32_status_t* status){
+    status->temp = status->instruction >> 6;
+    if(status->temp >> 17 & 1 == 1){
+        status->temp |= 0xfffc << 16;
+    }
+    status->temp += 4;
+    status->program_counter += status->temp;
 }
 
 void esp32_instruction_ENTRY(uint8_t* memory, esp32_status_t* status){
+    std::cout << "[WARN] ENTRY half implemented" << std::endl;
     status->program_counter += 3;
 }
 
+void esp32_instruction_L32IN(uint8_t* memory, esp32_status_t* status){
+    // TODO: Check
+    status->vAddr = status->a[(status->instruction >> 8) & 0x0f] + (((status->instruction >> 12) & 0x0f) << 2);
+    status->a[(status->instruction >> 4) & 0x0f] = status->vAddr;
+    status->program_counter += 2;
+}
+
 void esp32_instruction_init(){
+    esp32_instruction_register(
+        esp32_instruction_OR,
+        0b0000,     0xf,  0,
+        0b0000,     0xf,  16,
+        0b0010,     0xf,  20
+    );
+    esp32_instruction_register(
+        esp32_instruction_RSIL,
+        0b0000,     0xf,  0,
+        0b0000,     0xf,  16,
+        0b0000,     0xf,  20,
+        0b0110,     0xf,  12
+    );
     esp32_instruction_register(
         esp32_instruction_L32R,
         0b0001,     0xf,  0
@@ -58,24 +110,21 @@ void esp32_instruction_init(){
         0b10,       0b11,   4
     );
     esp32_instruction_register(
+        esp32_instruction_J,
+        0b0110,     0xf,    0,
+        0b00,       0b11,   4
+    );
+    esp32_instruction_register(
         esp32_instruction_ENTRY,
         0b0110,     0xf,    0,
         0b11,       0b11,   4,
         0b00,       0b11,   6
     );
 
-    /*
-    esp32_instruction_t* entry = new esp32_instruction_t;
-    instruction_base->sub[0b0001] = new esp32_instruction_t;
-    instruction_base->sub[0b0001]->name = "L32R";
-    instruction_base->sub[0b0001]->pFunc = esp32_instruction_L32R;
-
-    instruction_base->sub[0b0110] = new esp32_instruction_t;
-    instruction_base->sub[0b0110]->sub[0b11] = new esp32_instruction_t;
-    instruction_base->sub[0b0110]->sub[0b11]->sub[0b00] = new esp32_instruction_t;
-    instruction_base->sub[0b0110]->sub[0b11]->sub[0b00]->name = "ENTRY";
-    instruction_base->sub[0b0110]->sub[0b11]->sub[0b00]->pFunc = esp32_instruction_ENTRY;
-    */
+    esp32_instruction_register(
+        esp32_instruction_L32IN,
+        0b1000,     0xf,    0
+    );
 }
 
 bool esp32_instruction_parse(uint8_t* memory, esp32_status_t* status, esp32_instruction_t* instruction){

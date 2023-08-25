@@ -11,6 +11,9 @@ struct esp32_status_t {
     uint32_t a[16];
     uint32_t litbase;
     int32_t vAddr;
+
+    // Emulator
+    int32_t temp;
 };
 
 extern esp32_status_t* esp32_status;

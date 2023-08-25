@@ -47,9 +47,11 @@ int main() {
         }else{
             std::cout << "ERROR: Operation not supported" << std::endl;
             std::cout << "Got " << oks << " OKS!" << std::endl << std::endl;
-            std::cout << "24   20   16   12    8    4    0" << std::endl;
-            std::cout << "|    |    |    |    |    |    |" << std::endl;
-            std::cout   
+            std::cout << "PC    : 0x" << std::hex << esp32_status->program_counter << std::endl;
+            std::cout << "INSTR : 0x" << std::hex << esp32_status->instruction << std::endl;
+            std::cout << "        24   20   16   12    8    4    0" << std::endl;
+            std::cout << "        |    |    |    |    |    |    |" << std::endl;
+            std::cout << "        "
                     << " " << std::bitset<4>((esp32_status->instruction >> 20) &0xf)
                     << " " << std::bitset<4>((esp32_status->instruction >> 16) &0xf)
                     << " " << std::bitset<4>((esp32_status->instruction >> 12) &0xf)
