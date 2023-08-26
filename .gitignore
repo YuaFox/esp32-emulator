@@ -14,3 +14,5 @@ CPackConfig.cmake
 CPackSourceConfig.cmake
 DartConfiguration.tcl
 esp32-emulator
+
+*.elf

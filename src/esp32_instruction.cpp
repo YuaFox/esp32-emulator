@@ -32,40 +32,74 @@ void esp32_instruction_X(uint8_t* memory, esp32_status_t* status){
 
 }
 
-void esp32_instruction_OR(uint8_t* memory, esp32_status_t* status){
-    status->a[(status->instruction >> 12) & 0x0f] =
-        status->a[(status->instruction >> 8) & 0x0f] |
-        status->a[(status->instruction >> 4) & 0x0f];
+void esp32_instruction_CALLX8(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("CALLX8\n");
+    std::cout << esp32_register_a_read(status, status->instruction >> 8 &0xf) << std::endl;
     status->program_counter += 3;
-}
-
-void esp32_instruction_RSIL(uint8_t* memory, esp32_status_t* status){
-    std::cout << "[WARN] RSIL NOT IMPLEMENTED" << std::endl;
-    status->program_counter += 3;
-}
-
-void esp32_instruction_L32R(uint8_t* memory, esp32_status_t* status){
-    // TODO: LITBASE
-    std::cout << "[WARN] L32R half implemented" << std::endl;
-    status->vAddr = ((status->instruction >> 8) << 2) | (0b11111111111111 << 18);
-    status->vAddr += (status->program_counter + 3 >> 2 << 2);
-    status->vAddr -= 0xccff00; // TODO: wtf?
-    status->a[status->instruction >> 4 &0x0f] = status->vAddr;
-    
-    status->program_counter += 3;
-}
-
-void esp32_instruction_CALL8(uint8_t* memory, esp32_status_t* status){
-    std::cout << "[WARN] CALL8 half implemented" << std::endl;
+    /*
     status->temp = status->instruction >> 6;
     if(status->temp >> 17 & 1 == 1){
         status->temp |= 0xfff << 18;
     }
+    status->ps_callinc = 0b10;
+    esp32_register_a_write(status, 4, (status->program_counter + 3) & 0x3ff | 0x8000);
+    status->temp++;
+    status->program_counter = (status->program_counter >> 2 ) + status->temp << 2;
+    */
+}
+
+void esp32_instruction_OR(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("OR\n");
+    esp32_register_a_write(
+        status,
+        status->instruction >> 12 & 0x0f,
+        esp32_register_a_read(status, status->instruction >> 8 & 0x0f) |  esp32_register_a_read(status, status->instruction >> 4 & 0x0f)
+    );
+    status->program_counter += 3;
+}
+
+void esp32_instruction_RSIL(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("RSIL [NOT]\n");
+    status->program_counter += 3;
+}
+
+void esp32_instruction_WSR(uint8_t* memory, esp32_status_t* status){
+    status->special[status->instruction >> 8 & 0xff] = esp32_register_a_read(status, status->instruction >> 4 & 0x0f);
+    status->program_counter += 3;
+
+    if(status->print_instr) printf("WSR s%i, a%i ; a = %02x\n", status->instruction >> 8 & 0xff, status->instruction >> 4 & 0x0f ,esp32_register_a_read(status, status->instruction >> 4 & 0x0f));
+}
+
+void esp32_instruction_L32R(uint8_t* memory, esp32_status_t* status){
+    // TODO: LITBASE
+    
+    status->vAddr = ((status->instruction >> 8) << 2) | (0b11111111111111 << 18);
+    std::cout << status->vAddr << std::endl;
+    status->vAddr += (status->program_counter + 3 >> 2 << 2);
+    esp32_register_a_write(
+        status,
+        status->instruction >> 4 & 0x0f,
+        status->vAddr
+    );
+    status->program_counter += 3;
+
+    if(status->print_instr) printf("L32R a%i, %i; mem[%#010x] = (%02x %02x %02x %02x)\n", status->instruction >> 4 & 0x0f, status->instruction >> 8, status->vAddr, memory[status->vAddr], memory[status->vAddr+1], memory[status->vAddr+2], memory[status->vAddr+3]);
+}
+
+void esp32_instruction_CALL8(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("CALL8\n");
+    status->temp = status->instruction >> 6;
+    if(status->temp >> 17 & 1 == 1){
+        status->temp |= 0xfff << 18;
+    }
+    status->ps_callinc = 0b10;
+    esp32_register_a_write(status, 4, (status->program_counter + 3) & 0x3ff | 0x8000);
     status->temp++;
     status->program_counter = (status->program_counter >> 2 ) + status->temp << 2;
 }
 
 void esp32_instruction_J(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("J\n");
     status->temp = status->instruction >> 6;
     if(status->temp >> 17 & 1 == 1){
         status->temp |= 0xfffc << 16;
@@ -75,18 +109,61 @@ void esp32_instruction_J(uint8_t* memory, esp32_status_t* status){
 }
 
 void esp32_instruction_ENTRY(uint8_t* memory, esp32_status_t* status){
-    std::cout << "[WARN] ENTRY half implemented" << std::endl;
+    if(status->print_instr) printf("ENTRY\n");
+    status->temp = (status->instruction >> 8) & 4;
+    if(status->temp > 3){
+        std::cout << "ENTRY ERROR: AS > 3" << std::endl;
+        exit(0);
+    }
+    esp32_register_a_write(
+        status,
+        (status->ps_callinc << 2) + status->temp,
+        esp32_register_a_read(status, status->temp) - (status->instruction >> 12 << 3)
+    );
+    status->special[ESP32_REG_WINDOWBASE] = status->special[ESP32_REG_WINDOWBASE] + status->ps_callinc;
+    status->special[ESP32_REG_WINDOWSTART] = 1 << status->special[ESP32_REG_WINDOWBASE];
     status->program_counter += 3;
 }
 
 void esp32_instruction_L32IN(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("L32IN\n");
     // TODO: Check
-    status->vAddr = status->a[(status->instruction >> 8) & 0x0f] + (((status->instruction >> 12) & 0x0f) << 2);
-    status->a[(status->instruction >> 4) & 0x0f] = status->vAddr;
+    status->temp = esp32_register_a_read(
+        status,
+        (status->instruction >> 8) & 0x0f
+    );
+    status->vAddr = status->temp + (((status->instruction >> 12) & 0x0f) << 2);
+    esp32_register_a_write(
+        status,
+        (status->instruction >> 4) & 0x0f,
+        status->vAddr
+    );
+    status->program_counter += 2;
+}
+
+void esp32_instruction_MOVIN(uint8_t* memory, esp32_status_t* status){
+    if(status->print_instr) printf("MOVI.N\n");
+    
+    status->temp = ((status->instruction >> 12) & 0x0f) | ((status->instruction >> 4) & 0x0f);
+    esp32_register_a_write(
+        status,
+        (status->instruction >> 8) & 0x0f,
+        status->temp 
+    );
+
     status->program_counter += 2;
 }
 
 void esp32_instruction_init(){
+    esp32_instruction_register(
+        esp32_instruction_CALLX8,
+        0b0000,     0xf,    0,
+        0b0000,     0xf,   16,
+        0b0000,     0xf,   20,
+        0b0000,     0xf,   12,
+        0b11,       0b11,   6,
+        0b10,       0b11,   4
+    );
     esp32_instruction_register(
         esp32_instruction_OR,
         0b0000,     0xf,  0,
@@ -99,6 +176,12 @@ void esp32_instruction_init(){
         0b0000,     0xf,  16,
         0b0000,     0xf,  20,
         0b0110,     0xf,  12
+    );
+    esp32_instruction_register(
+        esp32_instruction_WSR,
+        0b0000,     0xf,  0,
+        0b0011,     0xf,  16,
+        0b0001,     0xf,  20
     );
     esp32_instruction_register(
         esp32_instruction_L32R,
@@ -124,6 +207,11 @@ void esp32_instruction_init(){
     esp32_instruction_register(
         esp32_instruction_L32IN,
         0b1000,     0xf,    0
+    );
+    esp32_instruction_register(
+        esp32_instruction_MOVIN,
+        0b1100,     0xf,  0,
+        0b0000,     0xf,  4
     );
 }
 
