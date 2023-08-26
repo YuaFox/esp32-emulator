@@ -54,8 +54,8 @@ int main(int argc, char *argv[]) {
 
     esp32_status->special[ESP32_REG_LITBASE] = 0;
 
-    //esp32_status->program_counter = 0x40081044; // call_start_cpu0
-    esp32_status->program_counter = 0x400d0c10; // app_main
+    esp32_status->program_counter = 0x40081044; // call_start_cpu0
+    //esp32_status->program_counter = 0x400d0c10; // app_main
 
     uint16_t oks = 0;
 
