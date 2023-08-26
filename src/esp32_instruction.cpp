@@ -36,7 +36,7 @@ void esp32_instruction_CALLX8(uint8_t* memory, esp32_status_t* status){
     status->program_counter = esp32_register_a_read(status, status->instruction >> 8 &0xf);
     status->ps_callinc = 0b10;
     esp32_register_a_write(status, 4, (status->program_counter + 3) & 0x3ff | 0b10 << 30);
-    if(status->print_instr) printf("CALLX8 a%i         ; PC = %#001x\n", status->instruction >> 8 &0xf, esp32_register_a_read(status, status->instruction >> 8 &0xf));
+    if(status->print_instr) printf("CALLX8 a%i         ; PC = %#01x\n", status->instruction >> 8 &0xf, esp32_register_a_read(status, status->instruction >> 8 &0xf));
 }
 
 void esp32_instruction_OR(uint8_t* memory, esp32_status_t* status){
