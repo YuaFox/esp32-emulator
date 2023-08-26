@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 
     // Simulate bootloader
     esp32_status->program_counter = firmware[0x7] << 24 | firmware[0x6] << 16 | firmware[0x5] << 8 | firmware[0x4]; // Don't match with esp32
-    printf("\nets %s %s\n\n", (char*)&firmware[0x80], (char*)&firmware[0x70]);
+    printf("ets %s %s\n\n", (char*)&firmware[0x80], (char*)&firmware[0x70]);
     printf("\x1b[31m");
     printf("rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)\nconfigsip: 0, SPIWP:0xee\nclk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00\nmode:DIO, clock div:2\nload:0x3fff0030,len:6940\nho 0 tail 12 room 4\nload:0x40078000,len:15500\nload:0x40080400,len:3844\n");
     printf("\x1b[0m");

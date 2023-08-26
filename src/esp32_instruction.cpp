@@ -32,6 +32,11 @@ void esp32_instruction_X(uint8_t* memory, esp32_status_t* status){
 
 }
 
+void esp32_instruction_ILL(uint8_t* memory, esp32_status_t* status){
+    puts("\x1b[31mILLEGAL INSTRUCTION");
+    exit(0);
+}
+
 void esp32_instruction_CALLX8(uint8_t* memory, esp32_status_t* status){
     status->program_counter = esp32_register_a_read(status, status->instruction >> 8 &0xf);
     status->ps_callinc = 0b10;
@@ -149,6 +154,16 @@ void esp32_instruction_MOVIN(uint8_t* memory, esp32_status_t* status){
 }
 
 void esp32_instruction_init(){
+    esp32_instruction_register(
+        esp32_instruction_ILL,
+        0b0000,     0xf,    0,
+        0b0000,     0xf,   16,
+        0b0000,     0xf,   20,
+        0b0000,     0xf,   12,
+        0b00,       0b11,   6,
+        0b00,       0b11,   4,
+        0b00,       0xf,    8
+    );
     esp32_instruction_register(
         esp32_instruction_CALLX8,
         0b0000,     0xf,    0,
