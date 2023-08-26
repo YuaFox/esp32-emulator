@@ -50,25 +50,27 @@ int main() {
     std::memcpy(&memory[0x400d0020], &firmware[0x00010020], 0x15be0); // 4 IROM
     std::memcpy(&memory[0x4008598c], &firmware[0x00025c08], 0x05ed8); // 5 IRAM
 
-    esp32_status->program_counter = 0x40081044; // Skip to call_start_cpu0, from esp32
+    esp32_status->special[ESP32_REG_LITBASE] = 0;
 
+    //esp32_status->program_counter = 0x40081044; // Skip to call_start_cpu0, from esp32
+    esp32_status->program_counter = 0x400d0c10;
     // Emulator options
-    esp32_status->print_instr = true;
+    esp32_status->print_instr = false;
 
     uint16_t oks = 0;
 
     while(true){
         esp32_status->instruction = memory[esp32_status->program_counter+2] << 16 | memory[esp32_status->program_counter+1] << 8 | memory[esp32_status->program_counter];
         // int puts(char * __s)
-        if(esp32_status->program_counter == 0x400d501c){
+        if(esp32_status->program_counter == 0x400d5014){
             const char* output = (char*) &memory[esp32_status->ar[10]];
-            printf(output); 
+            puts(output); 
             exit(0);
         }
         if(esp32_instruction_parse(memory, esp32_status)){
             oks++;
         }else{
-            std::cout << "ERROR: Operation not supported" << std::endl;
+            std::cout << "\nERROR: Operation not supported" << std::endl;
             std::cout << "Got " << oks << " OKS!" << std::endl << std::endl;
             std::cout << "PC    : 0x" << std::hex << esp32_status->program_counter << std::endl;
             std::cout << "INSTR : 0x" << std::hex << esp32_status->instruction << std::endl;

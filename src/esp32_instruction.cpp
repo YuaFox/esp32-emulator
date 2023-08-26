@@ -33,19 +33,10 @@ void esp32_instruction_X(uint8_t* memory, esp32_status_t* status){
 }
 
 void esp32_instruction_CALLX8(uint8_t* memory, esp32_status_t* status){
-    if(status->print_instr) printf("CALLX8\n");
-    std::cout << esp32_register_a_read(status, status->instruction >> 8 &0xf) << std::endl;
-    status->program_counter += 3;
-    /*
-    status->temp = status->instruction >> 6;
-    if(status->temp >> 17 & 1 == 1){
-        status->temp |= 0xfff << 18;
-    }
+    status->program_counter = esp32_register_a_read(status, status->instruction >> 8 &0xf);
     status->ps_callinc = 0b10;
-    esp32_register_a_write(status, 4, (status->program_counter + 3) & 0x3ff | 0x8000);
-    status->temp++;
-    status->program_counter = (status->program_counter >> 2 ) + status->temp << 2;
-    */
+    esp32_register_a_write(status, 4, (status->program_counter + 3) & 0x3ff | 0b10 << 30);
+    if(status->print_instr) printf("CALLX8 a%i         ; PC = %#001x\n", status->instruction >> 8 &0xf, esp32_register_a_read(status, status->instruction >> 8 &0xf));
 }
 
 void esp32_instruction_OR(uint8_t* memory, esp32_status_t* status){
@@ -67,23 +58,26 @@ void esp32_instruction_WSR(uint8_t* memory, esp32_status_t* status){
     status->special[status->instruction >> 8 & 0xff] = esp32_register_a_read(status, status->instruction >> 4 & 0x0f);
     status->program_counter += 3;
 
-    if(status->print_instr) printf("WSR s%i, a%i ; a = %02x\n", status->instruction >> 8 & 0xff, status->instruction >> 4 & 0x0f ,esp32_register_a_read(status, status->instruction >> 4 & 0x0f));
+    if(status->print_instr) printf("WSR s%i, a%i      ; a = %02x\n", status->instruction >> 8 & 0xff, status->instruction >> 4 & 0x0f ,esp32_register_a_read(status, status->instruction >> 4 & 0x0f));
 }
 
 void esp32_instruction_L32R(uint8_t* memory, esp32_status_t* status){
-    // TODO: LITBASE
+    status->vAddr = ((status->instruction >> 8 << 2)) | (0b11111111111111 << 18);
+
+    if(status->special[ESP32_REG_LITBASE]&0x1 == 1){
+        status->vAddr += (int32_t)(status->special[ESP32_REG_LITBASE] >> 12 << 12);
+    }else{
+        status->vAddr += (int32_t)(status->program_counter + 3 >> 2 << 2);
+    }
     
-    status->vAddr = ((status->instruction >> 8) << 2) | (0b11111111111111 << 18);
-    std::cout << status->vAddr << std::endl;
-    status->vAddr += (status->program_counter + 3 >> 2 << 2);
     esp32_register_a_write(
         status,
         status->instruction >> 4 & 0x0f,
-        status->vAddr
+        memory[status->vAddr+3] << 24 | memory[status->vAddr+2] << 16 | memory[status->vAddr+1] << 8 | memory[status->vAddr]
     );
     status->program_counter += 3;
 
-    if(status->print_instr) printf("L32R a%i, %i; mem[%#010x] = (%02x %02x %02x %02x)\n", status->instruction >> 4 & 0x0f, status->instruction >> 8, status->vAddr, memory[status->vAddr], memory[status->vAddr+1], memory[status->vAddr+2], memory[status->vAddr+3]);
+    if(status->print_instr) printf("L32R a%i, %i    ; mem[%#010x] = (%02x %02x %02x %02x)\n", status->instruction >> 4 & 0x0f, status->instruction >> 8, status->vAddr, memory[status->vAddr+3], memory[status->vAddr+2], memory[status->vAddr+1], memory[status->vAddr+0]);
 }
 
 void esp32_instruction_CALL8(uint8_t* memory, esp32_status_t* status){
