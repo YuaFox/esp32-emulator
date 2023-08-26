@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 
     esp32_status->special[ESP32_REG_LITBASE] = 0;
 
-    esp32_status->program_counter = 0x40081044; // call_start_cpu0
+    //esp32_status->program_counter = 0x40081044; // call_start_cpu0
     //esp32_status->program_counter = 0x400d0c10; // app_main
 
     uint16_t oks = 0;
@@ -68,6 +68,10 @@ int main(int argc, char *argv[]) {
             const char* output = (char*) &memory[esp32_status->ar[10]];
             puts(output); 
             exit(0);
+        }
+        // rtc_get_reset_reason
+        if(esp32_status->program_counter == 0x400081d4){
+            esp32_status->instruction = 0x000090;
         }
         if(esp32_instruction_parse(memory, esp32_status)){
             oks++;
