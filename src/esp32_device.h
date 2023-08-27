@@ -10,7 +10,7 @@
 
 
 struct esp32_device_t {
-    uint8_t memory[0x6008598c];
+    uint8_t memory[0x7fffffff];
 
     uint32_t program_counter;
     uint32_t instruction;
@@ -18,7 +18,8 @@ struct esp32_device_t {
     // Registers
     uint32_t ar[16*16];
     uint32_t special[256];
-    int32_t vAddr;
+    uint32_t vAddr;
+    uint32_t pAddr;
     uint8_t ps_callinc = 0;
     uint8_t ps_owb = 0;
 

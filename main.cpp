@@ -51,7 +51,10 @@ int main(int argc, char *argv[]) {
     std::memcpy(&esp32_device->memory[0x400d0020], &firmware[0x00010020], 0x15be0); // 4 IROM
     std::memcpy(&esp32_device->memory[0x4008598c], &firmware[0x00025c08], 0x05ed8); // 5 IRAM
 
+    esp32_device->program_counter = 0x400d1248;
     esp32_device->special[ESP32_REG_LITBASE] = 0;
+
+
 
     uint16_t oks = 0;
 
@@ -69,10 +72,11 @@ int main(int argc, char *argv[]) {
         }
         // rtc_get_reset_reason
         if(esp32_device->program_counter == 0x400081d4){
-            esp32_device->instruction = 0x4136;
+            esp32_device->instruction = 0x236;
             esp32_instruction_parse(esp32_device);
             esp32_device->instruction = 0x000090;
         }
+        
         if(esp32_instruction_parse(esp32_device)){
             oks++;
         }else{

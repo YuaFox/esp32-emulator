@@ -9,10 +9,11 @@ bool esp32_instruction_parse(esp32_device_t* device, esp32_instruction_t* instru
 
     if(l == nullptr) return false;
 
-    if(l->pFunc != nullptr){
+    if(l->pFunc != nullptr){ 
         l->pFunc(device);
         return true;
     }else{
+        
         return esp32_instruction_parse(device, l);
     }
 }
@@ -31,5 +32,6 @@ void esp32_register_a_write(esp32_device_t* status, uint16_t reg, uint32_t value
 }
 
 uint32_t esp32_memory_load32(esp32_device_t* device){
-    return device->memory[device->vAddr+3] << 24 | device->memory[device->vAddr+2] << 16 | device->memory[device->vAddr+1] << 8 | device->memory[device->vAddr];
+    device->pAddr = device->vAddr & 0x7fffffff;
+    return device->memory[device->pAddr+3] << 24 | device->memory[device->pAddr+2] << 16 | device->memory[device->pAddr+1] << 8 | device->memory[device->pAddr];
 }
