@@ -81,15 +81,46 @@ void esp32_instruction_OR(esp32_device_t* device){
 }
 
 void esp32_instruction_RSIL(esp32_device_t* device){
-    if(device->print_instr) printf("RSIL [NOT]\n");
+    if(device->print_instr) printf("RSIL [NOT] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     device->program_counter += 3;
 }
+
+void esp32_instruction_SLLI(esp32_device_t* device){
+    device->temp =  ((device->instruction >> 16 & 1) << 4) | (device->instruction >> 4 & 0xf);
+    esp32_register_a_write(
+        device,
+        device->instruction >> 12 & 0xf,
+        esp32_register_a_read(device, device->instruction >> 8 & 0xf) << device->temp
+    );
+    if(device->print_instr) printf("SLLI a%i, a%i, %i   ; a = %#08x\n", device->instruction >> 12 & 0xf, device->instruction >> 8 & 0xf, device->temp, esp32_register_a_read(device, device->instruction >> 12 & 0xf));
+    device->program_counter += 3;
+}
+
+
 
 void esp32_instruction_WSR(esp32_device_t* device){
     device->special[device->instruction >> 8 & 0xff] = esp32_register_a_read(device, device->instruction >> 4 & 0x0f);
     device->program_counter += 3;
-
     if(device->print_instr) printf("WSR s%i, a%i      ; a = %02x\n", device->instruction >> 8 & 0xff, device->instruction >> 4 & 0x0f ,esp32_register_a_read(device, device->instruction >> 4 & 0x0f));
+}
+
+void esp32_instruction_RSR(esp32_device_t* device){
+    device->temp = device->special[device->instruction >> 8 & 0xff];
+    esp32_register_a_write(device, device->instruction >> 4 & 0x0f, device->temp);
+    device->program_counter += 3;
+    if(device->print_instr) printf("RSR s%i, a%i      ; a = %#08x\n", device->instruction >> 8 & 0xff, device->instruction >> 4 & 0x0f ,device->temp);
+}
+
+void esp32_instruction_EXTUI(esp32_device_t* device){
+    device->mask = (1 << (device->instruction >> 20)+1) - 1;
+    device->temp = ((device->instruction >> 16 & 1) << 4) | (device->instruction >> 8 & 0xf); // shiftimm
+    esp32_register_a_write(
+        device,
+        device->instruction >> 12 & 0xf,
+        esp32_register_a_read(device, device->instruction >> 4 & 0xf) >> device->temp & device->mask
+    );
+    device->program_counter += 3;
+    if(device->print_instr) printf("EXTUI a%i, a%i, %i, %#01x     ; a = %#08x\n", device->instruction >> 12 & 0xf, device->instruction >> 4 & 0xf, device->temp, device->mask, esp32_register_a_read(device, device->instruction >> 4 & 0xf) >> device->temp & device->mask);
 }
 
 void esp32_instruction_L32R(esp32_device_t* device){
@@ -108,19 +139,26 @@ void esp32_instruction_L32R(esp32_device_t* device){
     );
     device->program_counter += 3;
 
-    if(device->print_instr) printf("L32R a%i, %i    ; mem[%#010x] = (%#08x)\n", device->instruction >> 4 & 0x0f, device->instruction >> 8, device->vAddr, esp32_register_a_read(device, device->instruction >> 4 & 0x0f));
+    if(device->print_instr) printf("L32R a%i, %i    ; mem[%#010x] = %#08x\n", device->instruction >> 4 & 0x0f, device->instruction >> 8, device->vAddr, esp32_register_a_read(device, device->instruction >> 4 & 0x0f));
+}
+
+void esp32_instruction_L32I(esp32_device_t* device){
+    if(device->print_instr) printf("L32I a%i, a%i, %#01x ", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, device->instruction >> 16);
+    device->vAddr = esp32_register_a_read(device, device->instruction >> 8 & 0x0f) + (device->instruction >> 16 << 2);
+    esp32_register_a_write(device, device->instruction >> 4 & 0x0f, esp32_memory_load32(device));
+    device->program_counter += 3;
+    if(device->print_instr) printf("   ; mem[%#01x] = %#01x\n", device->vAddr, esp32_memory_load32(device));
 }
 
 void esp32_instruction_CALL8(esp32_device_t* device){
-    if(device->print_instr) printf("CALL8\n");
+    device->ps_callinc = 0b10;
+    esp32_register_a_write(device, 8, ((device->program_counter + 3) & 0x3fffffff) | (0b10 << 30));
     device->temp = device->instruction >> 6;
     if(device->temp >> 17 & 1 == 1){
         device->temp |= 0xfff << 18;
     }
-    device->ps_callinc = 0b10;
-    esp32_register_a_write(device, 4, (device->program_counter + 3) & 0x3ff | 0x8000);
-    device->temp++;
-    device->program_counter = (device->program_counter >> 2 ) + device->temp << 2;
+    device->program_counter = ((device->program_counter >> 2) + device->temp + 1) << 2;
+    if(device->print_instr) printf("CALL8 %#01x     ; PC = %#08x\n", device->instruction >> 6, device->program_counter);
 }
 
 void esp32_instruction_J(esp32_device_t* device){
@@ -131,6 +169,48 @@ void esp32_instruction_J(esp32_device_t* device){
     }
     device->temp += 4;
     device->program_counter += device->temp;
+}
+
+void esp32_instruction_BNEI(esp32_device_t* device){
+    switch (device->temp) {
+        case  0: device->temp = -1; break;
+        case  1: device->temp = 1; break;
+        case  2: device->temp = 2; break;
+        case  3: device->temp = 3; break;
+        case  4: device->temp = 4; break;
+        case  5: device->temp = 5; break;
+        case  6: device->temp = 6; break;
+        case  7: device->temp = 7; break;
+        case  8: device->temp = 8; break;
+        case  9: device->temp = 10; break;
+        case 10: device->temp = 12; break;
+        case 11: device->temp = 16; break;
+        case 12: device->temp = 32; break;
+        case 13: device->temp = 64; break;
+        case 14: device->temp = 128; break;
+        case 15: device->temp = 256; break;
+    }
+
+    if(device->print_instr) printf("BNEI a%i, %i, %i   ; [ %i != %i  ]", device->instruction >> 8 & 0xf, device->instruction >> 16, device->temp, esp32_register_a_read(device, device->instruction >> 8 & 0xf), device->temp);
+    
+
+    if(esp32_register_a_read(device, device->instruction >> 8 & 0xf) != device->temp){
+        device->temp = device->instruction >> 16;
+        if(device->temp >> 7 & 1 == 1){
+            device->temp |= 0xffffff << 8;
+        }
+        device->program_counter += device->temp + 4;
+        if(device->print_instr) printf(" jump to PC = %#010x\n", device->program_counter);
+    }else{
+        device->program_counter += 3;
+        if(device->print_instr) printf(" skip\n");
+    }
+    device->temp = device->instruction >> 6;
+    if(device->temp >> 17 & 1 == 1){
+        device->temp |= 0xfffc << 16;
+    }
+    device->temp += 4;
+    
 }
 
 void esp32_instruction_ENTRY(esp32_device_t* device){
@@ -170,12 +250,10 @@ void esp32_instruction_BLTUI(esp32_device_t* device){
         case 14: device->temp = 128; break;
         case 15: device->temp = 256; break;
     }
-
-    device->vAddr = esp32_register_a_read(device, device->instruction >> 8 & 0xf);
     
-    if(device->print_instr) printf("BLTUI a%i, %i, %i   ; [ %i < %i  ]", device->instruction >> 8 & 0xf, device->instruction >> 16, device->temp, esp32_memory_load32(device), device->temp);
+    if(device->print_instr) printf("BLTUI a%i, %i, %i   ; [ %i < %i  ]", device->instruction >> 8 & 0xf, device->instruction >> 16, device->temp, esp32_register_a_read(device, device->instruction >> 8 & 0xf), device->temp);
     
-    if(esp32_memory_load32(device) < device->temp){
+    if(esp32_register_a_read(device, device->instruction >> 8 & 0xf) < device->temp){
         device->temp = device->instruction >> 16;
         if(device->temp >> 7 & 1 == 1){
             device->temp |= 0xffffff << 8;
@@ -184,13 +262,12 @@ void esp32_instruction_BLTUI(esp32_device_t* device){
         if(device->print_instr) printf(" jump to PC = %#010x\n", device->program_counter);
     }else{
         device->program_counter += 3;
-        if(device->print_instr) puts(" skip\n");
+        if(device->print_instr) puts(" skip");
     }
 }
 
 void esp32_instruction_L32IN(esp32_device_t* device){
-    if(device->print_instr) printf("L32IN\n");
-    // TODO: Check
+    if(device->print_instr) printf("L32IN a%i, a%i, %#01x", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, (device->instruction >> 12) & 0x0f);
     device->temp = esp32_register_a_read(
         device,
         (device->instruction >> 8) & 0x0f
@@ -199,9 +276,10 @@ void esp32_instruction_L32IN(esp32_device_t* device){
     esp32_register_a_write(
         device,
         (device->instruction >> 4) & 0x0f,
-        device->vAddr
+        esp32_memory_load32(device)
     );
     device->program_counter += 2;
+    if(device->print_instr) printf("   ; mem[%#01x] = %#01x\n", device->vAddr, esp32_memory_load32(device));
 }
 
 void esp32_instruction_S32IN(esp32_device_t* device){
@@ -223,6 +301,34 @@ void esp32_instruction_MOVIN(esp32_device_t* device){
     );
     device->program_counter += 2;
     if(device->print_instr) printf("MOVI.N a%i, %#08x\n",  (device->instruction >> 8) & 0x0f, device->temp);
+}
+
+void esp32_instruction_BEQZN(esp32_device_t* device){
+    device->temp = ((device->instruction >> 12 & 0xf) << 2) + (device->instruction >> 6 & 0b11);
+
+    if(device->print_instr) printf("BEQZ.N a%i, %i     ", device->instruction >> 8 & 0x0f, device->temp);
+
+    if(esp32_register_a_read(device, (device->instruction >> 8) & 0x0f) == 0){
+        device->program_counter += device->temp;
+        if(device->print_instr) printf("; PC = %#01x\n", device->program_counter);
+    }else{
+        device->program_counter += 2;
+        if(device->print_instr) printf("; skip\n");
+    }
+}
+
+void esp32_instruction_BNEZN(esp32_device_t* device){
+    device->temp = ((device->instruction >> 12 & 0xf) << 2) + (device->instruction >> 6 & 0b11);
+
+    if(device->print_instr) printf("BNEZ.N a%i, %i     ", device->instruction >> 8 & 0x0f, device->temp);
+
+    if(esp32_register_a_read(device, (device->instruction >> 8) & 0x0f) != 0){
+        device->program_counter += device->temp;
+        if(device->print_instr) printf("; PC = %#01x\n", device->program_counter);
+    }else{
+        device->program_counter += 2;
+        if(device->print_instr) printf("; skip\n");
+    }
 }
 
 void esp32_instruction_MOVN(esp32_device_t* device){
@@ -286,14 +392,47 @@ void esp32_instruction_init(){
         0b0110,     0xf,  12
     );
     esp32_instruction_register(
+        esp32_instruction_SLLI,
+        0b0000,     0xf,  0,
+        0b0001,     0xf,  16,
+        0b0000,     0xf,  20
+    );
+    esp32_instruction_register(
+        esp32_instruction_SLLI,
+        0b0000,     0xf,  0,
+        0b0001,     0xf,  16,
+        0b0001,     0xf,  20
+    );
+    esp32_instruction_register(
         esp32_instruction_WSR,
         0b0000,     0xf,  0,
         0b0011,     0xf,  16,
         0b0001,     0xf,  20
     );
     esp32_instruction_register(
+        esp32_instruction_RSR,
+        0b0000,     0xf,  0,
+        0b0011,     0xf,  16,
+        0b0000,     0xf,  20
+    );
+    esp32_instruction_register(
+        esp32_instruction_EXTUI,
+        0b0000,     0xf,  0,
+        0b0100,     0xf,  16
+    );
+    esp32_instruction_register(
+        esp32_instruction_EXTUI,
+        0b0000,     0xf,  0,
+        0b0101,     0xf,  16
+    );
+    esp32_instruction_register(
         esp32_instruction_L32R,
         0b0001,     0xf,  0
+    );
+    esp32_instruction_register(
+        esp32_instruction_L32I,
+        0b0010,     0xf,  0,
+        0b0010,     0xf,  12
     );
     esp32_instruction_register(
         esp32_instruction_CALL8,
@@ -304,6 +443,12 @@ void esp32_instruction_init(){
         esp32_instruction_J,
         0b0110,     0xf,    0,
         0b00,       0b11,   4
+    );
+    esp32_instruction_register(
+        esp32_instruction_BNEI,
+        0b0110,     0xf,    0,
+        0b10,       0b11,   4,
+        0b01,       0b11,   6
     );
     esp32_instruction_register(
         esp32_instruction_ENTRY,
@@ -329,11 +474,27 @@ void esp32_instruction_init(){
     esp32_instruction_register(
         esp32_instruction_MOVIN,
         0b1100,     0xf,  0,
-           0b0,     0x1,  7
+        0b00,       0b11,  6
+    );
+    esp32_instruction_register(
+        esp32_instruction_BEQZN,
+        0b1100,     0xf,  0,
+        0b10,      0b11,  6
+    );
+    esp32_instruction_register(
+        esp32_instruction_BNEZN,
+        0b1100,     0xf,    0,
+        0b11,       0b11,   6
     );
     esp32_instruction_register(
         esp32_instruction_MOVN,
         0b1101,     0xf,  0,
         0b0000,     0xf,  12
+    );
+    esp32_instruction_register(
+        esp32_instruction_RETW, // RETW.N is equal
+        0b1101,     0xf,  0,
+        0b1111,     0xf,  12,
+        0b0001,     0xf,  4
     );
 }

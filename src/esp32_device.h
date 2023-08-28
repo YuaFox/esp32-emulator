@@ -6,7 +6,11 @@
 #define ESP32_REG_LITBASE       5
 #define ESP32_REG_WINDOWBASE    72
 #define ESP32_REG_WINDOWSTART   73
-#define VECBASE                 231
+#define ESP32_REG_PS            230
+    #define ESP32_REG_PS_INTLEVEL 0
+#define ESP32_REG_VECBASE       231
+#define ESP32_REG_CCOUNT        234
+#define ESP32_REG_PRID          235
 
 
 struct esp32_device_t {
@@ -20,11 +24,19 @@ struct esp32_device_t {
     uint32_t special[256];
     uint32_t vAddr;
     uint32_t pAddr;
+    uint32_t mask;
+
+    // Special ps
     uint8_t ps_callinc = 0;
     uint8_t ps_owb = 0;
+    uint8_t ps_intlevel = 0;
 
-    // Emulator
+    // Helpers
     int32_t temp;
+    int32_t s, t;
+
+
+    // Emulator options
     bool print_instr = false;
 };
 

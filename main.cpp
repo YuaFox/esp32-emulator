@@ -47,12 +47,14 @@ int main(int argc, char *argv[]) {
 
     // copy from real esp32
     std::memcpy(&esp32_device->memory[0x3f400020], &firmware[0x00000020], 0x087e8); // 1 DROM
+    std::memcpy(&esp32_device->memory[0x3ffb0000], &firmware[0x00018810], 0x01e74); // 2
     std::memcpy(&esp32_device->memory[0x40080000], &firmware[0x0000a68c], 0x0598c); // 3 IRAM
     std::memcpy(&esp32_device->memory[0x400d0020], &firmware[0x00010020], 0x15be0); // 4 IROM
     std::memcpy(&esp32_device->memory[0x4008598c], &firmware[0x00025c08], 0x05ed8); // 5 IRAM
 
     esp32_device->program_counter = 0x400d1248;
     esp32_device->special[ESP32_REG_LITBASE] = 0;
+    esp32_device->special[ESP32_REG_CCOUNT] = 0;
 
 
 
@@ -76,8 +78,18 @@ int main(int argc, char *argv[]) {
             esp32_instruction_parse(esp32_device);
             esp32_device->instruction = 0x000090;
         }
+
+        // unsigned _xtos_set_min_intlevel(int intlevel)
+        if(esp32_device->program_counter == 0x4000bfdc){
+            puts("; -- binded unsigned _xtos_set_min_intlevel(int intlevel)");
+            esp32_device->instruction = 0x236;
+            esp32_instruction_parse(esp32_device);
+            esp32_device->ps_intlevel = esp32_register_a_read(esp32_device, 2);
+            esp32_device->instruction = 0x000090;
+        }
         
         if(esp32_instruction_parse(esp32_device)){
+            esp32_device->special[ESP32_REG_CCOUNT]++;
             oks++;
         }else{
             puts("\x1b[31m");
