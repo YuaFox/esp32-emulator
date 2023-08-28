@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
     std::memcpy(&esp32_device->memory[0x400d0020], &firmware[0x00010020], 0x15be0); // 4 IROM
     std::memcpy(&esp32_device->memory[0x4008598c], &firmware[0x00025c08], 0x05ed8); // 5 IRAM
 
+    esp32_device->memory[0x3ffe01e0] = 0x1; // g_ticks_per_us_pro
+
     esp32_device->program_counter = 0x400d1248;
     esp32_device->special[ESP32_REG_LITBASE] = 0;
     esp32_device->special[ESP32_REG_CCOUNT] = 0;
