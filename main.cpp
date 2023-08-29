@@ -52,9 +52,9 @@ int main(int argc, char *argv[]) {
     std::memcpy(&esp32_device->memory[0x400d0020], &firmware[0x00010020], 0x15be0); // 4 IROM
     std::memcpy(&esp32_device->memory[0x4008598c], &firmware[0x00025c08], 0x05ed8); // 5 IRAM
 
-    esp32_device->memory[0x3ffe01e0] = 0x1; // g_ticks_per_us_pro
-
     esp32_device->program_counter = 0x400d1248;
+
+    esp32_device->memory[0x3ffe01e0] = 0x1; // g_ticks_per_us_pro
     esp32_device->special[ESP32_REG_LITBASE] = 0;
     esp32_device->special[ESP32_REG_CCOUNT] = 0;
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
     uint16_t oks = 0;
 
-    printf("\x1B[32m");
+    printf("\x1B[34m");
     while(true){
         esp32_device->instruction = esp32_device->memory[esp32_device->program_counter+2] << 16 |
                                     esp32_device->memory[esp32_device->program_counter+1] << 8 |
@@ -83,15 +83,24 @@ int main(int argc, char *argv[]) {
 
         // unsigned _xtos_set_min_intlevel(int intlevel)
         if(esp32_device->program_counter == 0x4000bfdc){
-            puts("; -- binded unsigned _xtos_set_min_intlevel(int intlevel)");
+            if(esp32_device->print_instr) puts("; -- binded unsigned _xtos_set_min_intlevel(int intlevel)");
             esp32_device->instruction = 0x236;
             esp32_instruction_parse(esp32_device);
             esp32_device->ps_intlevel = esp32_register_a_read(esp32_device, 2);
             esp32_device->instruction = 0x000090;
         }
+
+        if(esp32_device->program_counter == 0x40007d54){
+            if(esp32_device->print_instr) puts("; -- binded ets_printf");
+            esp32_device->instruction = 0x136;
+            esp32_instruction_parse(esp32_device);
+            printf((char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 2)], esp32_register_a_read(esp32_device, 3), (char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 4)]);
+            esp32_device->instruction = 0x000090;
+            printf("\x1b[34m");
+        }
         
         if(esp32_instruction_parse(esp32_device)){
-            esp32_device->special[ESP32_REG_CCOUNT]++;
+            esp32_device->special[ESP32_REG_CCOUNT] += 1;
             oks++;
         }else{
             puts("\x1b[31m");

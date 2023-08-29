@@ -47,5 +47,6 @@ uint32_t esp32_register_a_read(esp32_device_t* status, uint16_t reg);
 void esp32_register_a_write(esp32_device_t* status, uint16_t reg, uint32_t value);
 
 uint32_t esp32_memory_load32(esp32_device_t* device);
+void esp32_memory_write32(esp32_device_t* device, uint32_t val);
 
 #endif
