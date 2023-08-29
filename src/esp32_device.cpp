@@ -33,9 +33,32 @@ void esp32_register_a_write(esp32_device_t* status, uint16_t reg, uint32_t value
     status->ar[((((reg >> 2) & 0b11)+status->special[ESP32_REG_WINDOWBASE]) << 2)|(reg & 0b11)] = value;
 }
 
+uint32_t esp32_memory_paddr(uint32_t vAddr){
+    return vAddr & 0x7fffffff;
+}
+
+uint32_t esp32_memory_load8(esp32_device_t* device){
+    device->pAddr = device->vAddr & 0x7fffffff;
+    return device->memory[device->pAddr];
+}
+uint32_t esp32_memory_load16(esp32_device_t* device){
+    device->pAddr = device->vAddr & 0x7fffffff;
+    return device->memory[device->pAddr+1] << 8 | device->memory[device->pAddr];
+}
 uint32_t esp32_memory_load32(esp32_device_t* device){
     device->pAddr = device->vAddr & 0x7fffffff;
     return device->memory[device->pAddr+3] << 24 | device->memory[device->pAddr+2] << 16 | device->memory[device->pAddr+1] << 8 | device->memory[device->pAddr];
+}
+
+void esp32_memory_write8(esp32_device_t* device, uint8_t val){
+    device->pAddr = device->vAddr & 0x7fffffff;
+    device->memory[device->pAddr+0] = val >> 0 & 0xff;
+}
+
+void esp32_memory_write16(esp32_device_t* device, uint16_t val){
+    device->pAddr = device->vAddr & 0x7fffffff;
+    device->memory[device->pAddr+1] = val >> 8 & 0xff;
+    device->memory[device->pAddr+0] = val >> 0 & 0xff;
 }
 
 void esp32_memory_write32(esp32_device_t* device, uint32_t val){

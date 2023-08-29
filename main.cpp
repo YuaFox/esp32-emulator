@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <cstring>
 #include <bitset>
+#include <string.h>
 
 #include "src/esp32_instruction.h"
 
@@ -57,6 +58,7 @@ int main(int argc, char *argv[]) {
     esp32_device->memory[0x3ffe01e0] = 0x1; // g_ticks_per_us_pro
     esp32_device->special[ESP32_REG_LITBASE] = 0;
     esp32_device->special[ESP32_REG_CCOUNT] = 0;
+    esp32_register_a_write(esp32_device, 1, 0x3ffe3f20);
 
 
 
@@ -90,11 +92,33 @@ int main(int argc, char *argv[]) {
             esp32_device->instruction = 0x000090;
         }
 
+        // ets_printf
         if(esp32_device->program_counter == 0x40007d54){
             if(esp32_device->print_instr) puts("; -- binded ets_printf");
             esp32_device->instruction = 0x136;
             esp32_instruction_parse(esp32_device);
-            printf((char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 2)], esp32_register_a_read(esp32_device, 3), (char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 4)]);
+
+            fputs((char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 2)], stdout);
+            esp32_device->instruction = 0x000090;
+            printf("\x1b[34m");
+        }
+
+        // memcpy
+        if(esp32_device->program_counter == 0x4000c2c8){
+            if(esp32_device->print_instr) puts("; -- binded memcpy");
+            esp32_device->instruction = 0x136;
+            esp32_instruction_parse(esp32_device);
+
+            for(int i = 0; i < 16; i++){
+                printf("%i %#01x\n", i, esp32_register_a_read(esp32_device, i));
+            }
+            memcpy(
+                &esp32_device->memory[esp32_memory_paddr(esp32_register_a_read(esp32_device, 2))],
+                &esp32_device->memory[esp32_memory_paddr(esp32_register_a_read(esp32_device, 3))],
+                esp32_register_a_read(esp32_device, 4)
+            );
+            exit(0);
+
             esp32_device->instruction = 0x000090;
             printf("\x1b[34m");
         }
