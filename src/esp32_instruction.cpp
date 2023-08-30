@@ -157,7 +157,7 @@ void esp32_instruction_SLLI(esp32_device_t* device){
     esp32_register_a_write(
         device,
         device->instruction >> 12 & 0xf,
-        esp32_register_a_read(device, device->instruction >> 8 & 0xf) << device->temp
+        esp32_register_a_read(device, device->instruction >> 8 & 0xf) << (32-device->temp)
     );
     if(device->print_instr) printf("SLLI a%i, a%i, %i   ; a = %#08x\n", device->instruction >> 12 & 0xf, device->instruction >> 8 & 0xf, device->temp, esp32_register_a_read(device, device->instruction >> 12 & 0xf));
     device->program_counter += 3;

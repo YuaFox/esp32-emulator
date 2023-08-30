@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 
     esp32_device->program_counter = 0x400d1248;
 
-    esp32_device->memory[0x3ffe01e0] = 0x1; // g_ticks_per_us_pro
+    esp32_device->memory[0x3ffe01e0] = 0xA0; // g_ticks_per_us_pro
     esp32_device->special[ESP32_REG_LITBASE] = 0;
     esp32_device->special[ESP32_REG_CCOUNT] = 0;
     esp32_register_a_write(esp32_device, 1, 0x3ffe3f20);
@@ -97,8 +97,28 @@ int main(int argc, char *argv[]) {
             if(esp32_device->print_instr) puts("; -- binded ets_printf");
             esp32_device->instruction = 0x136;
             esp32_instruction_parse(esp32_device);
+            char * pch;
+            char buffer[256];
+            pch = strtok ((char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 2)],"%");
+            uint8_t reg = 3;
+            fputs(pch, stdout);
+            pch = strtok (NULL, "%");
+            while (pch != NULL)
+            {
+                memset(buffer, '%', 1);
+                memcpy(buffer+1, pch, 255);
+                if(strncmp(buffer, "%lu", 3) == 0){
+                    printf(buffer, esp32_register_a_read(esp32_device, reg++));
+                }else if(strncmp(buffer, "%d", 2) == 0){
+                    printf(buffer, esp32_register_a_read(esp32_device, reg++));
+                }else if(strncmp(buffer, "%s", 2) == 0){
+                    printf(buffer, &esp32_device->memory[esp32_register_a_read(esp32_device, reg++)]);
+                }else{
+                    fputs(buffer, stdout);
+                }
+                pch = strtok (NULL, "%");
+            }
 
-            fputs((char*) &esp32_device->memory[esp32_register_a_read(esp32_device, 2)], stdout);
             esp32_device->instruction = 0x000090;
             printf("\x1b[34m");
         }
@@ -108,19 +128,42 @@ int main(int argc, char *argv[]) {
             if(esp32_device->print_instr) puts("; -- binded memcpy");
             esp32_device->instruction = 0x136;
             esp32_instruction_parse(esp32_device);
-
-            for(int i = 0; i < 16; i++){
-                printf("%i %#01x\n", i, esp32_register_a_read(esp32_device, i));
-            }
             memcpy(
                 &esp32_device->memory[esp32_memory_paddr(esp32_register_a_read(esp32_device, 2))],
                 &esp32_device->memory[esp32_memory_paddr(esp32_register_a_read(esp32_device, 3))],
                 esp32_register_a_read(esp32_device, 4)
             );
+
+            esp32_device->instruction = 0x000090;
+        }
+
+        // void qsort(void *base, size_t nitems, size_t size, int (*compar)(const void *, const void*))
+        if(esp32_device->program_counter == 0x40056424){
+            if(esp32_device->print_instr) puts("; -- binded qsort");
+            esp32_device->instruction = 0x136;
+            esp32_instruction_parse(esp32_device);
+
+            for(int i = 0; i < 16; i++){
+                printf("%i %#01x\n", i, esp32_register_a_read(esp32_device, i));
+            }
+
+            printf("- %#01x\n", esp32_device->memory[esp32_register_a_read(esp32_device, 2)+4]);
+            printf("- %#01x\n", esp32_device->memory[esp32_register_a_read(esp32_device, 2)+8]);
+            printf("- %#01x\n", esp32_device->memory[esp32_register_a_read(esp32_device, 2)+16]);
+            printf("- %#01x\n", esp32_device->memory[esp32_register_a_read(esp32_device, 2)+24]);
+            
+
+            esp32_register_a_write(esp32_device, 10, esp32_register_a_read(esp32_device, 2));
+
+            exit(0);
+
+            // Call sort function
+            esp32_device->instruction = 0b000000000000010111100000;
+            esp32_instruction_parse(esp32_device);
+
             exit(0);
 
             esp32_device->instruction = 0x000090;
-            printf("\x1b[34m");
         }
         
         if(esp32_instruction_parse(esp32_device)){
