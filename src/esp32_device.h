@@ -34,11 +34,16 @@ struct esp32_device_t {
     // Helpers
     int32_t temp;
     int32_t s, t;
+    uint16_t call_depth;
 
 
     // Emulator options
     bool print_instr = false;
 };
+
+int esp32_run(esp32_device_t* device);
+void esp32_run_instruction(esp32_device_t* device);
+void esp32_run_instruction(esp32_device_t* device, uint32_t instruction);
 
 bool esp32_instruction_parse(esp32_device_t* device);
 
