@@ -2,6 +2,7 @@
 #define ESP32_DEVICE_H
 
 #include <fstream>
+#include <list>
 
 #define ESP32_REG_LITBASE       5
 #define ESP32_REG_WINDOWBASE    72
@@ -35,6 +36,7 @@ struct esp32_device_t {
     int32_t temp;
     int32_t s, t;
     uint16_t call_depth;
+    std::list<uint32_t> stacktrace;
 
 
     // Emulator options
@@ -44,6 +46,8 @@ struct esp32_device_t {
 int esp32_run(esp32_device_t* device);
 void esp32_run_instruction(esp32_device_t* device);
 void esp32_run_instruction(esp32_device_t* device, uint32_t instruction);
+
+void esp32_print_error(esp32_device_t* device, char* reason);
 
 bool esp32_instruction_parse(esp32_device_t* device);
 

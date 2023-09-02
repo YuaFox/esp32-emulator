@@ -11,7 +11,14 @@ int esp32_run(esp32_device_t* device){
 
     esp32_run_instruction(device);
 
+    bool stop = false;
+
     while(device->call_depth > start_depth){
+        if(device->program_counter == 0x4008a3a8){
+            stop = true;
+            esp32_print_error(device, "Assert failed");
+        }
+        
         esp32_binding_map::iterator it = esp32_bindings.find(device->program_counter);
 
         if (it == esp32_bindings.end()) {
@@ -24,9 +31,11 @@ int esp32_run(esp32_device_t* device){
             if(device->print_instr) puts("; -- end binding");
         }
 
-        if(device->program_counter == 0x4008a48b+2){
+        if(stop){
             getchar();
         }
+
+        
     }
 
     return 0;
@@ -43,22 +52,29 @@ void esp32_run_instruction(esp32_device_t* device, uint32_t instruction){
     if(esp32_instruction_parse(device)){
         device->special[ESP32_REG_CCOUNT] += 1;
     }else{
-        puts("\x1b[31m");
-        std::cout << "\nERROR: Operation not supported" << std::endl;
-        std::cout << "Got " << 0 << " OKS!" << std::endl << std::endl;
-        std::cout << "PC    : 0x" << std::hex << device->program_counter << std::endl;
-        std::cout << "INSTR : 0x" << std::hex << device->instruction << std::endl;
-        std::cout << "        24   20   16   12    8    4    0" << std::endl;
-        std::cout << "        |    |    |    |    |    |    |" << std::endl;
-        std::cout << "        "
-                << " " << std::bitset<4>((device->instruction >> 20) &0xf)
-                << " " << std::bitset<4>((device->instruction >> 16) &0xf)
-                << " " << std::bitset<4>((device->instruction >> 12) &0xf)
-                << " " << std::bitset<4>((device->instruction >>  8) &0xf)
-                << " " << std::bitset<4>((device->instruction >>  4) &0xf)
-                << " " << std::bitset<4>((device->instruction >>  0) &0xf) << std::endl;
-        exit(0);
+        esp32_print_error(device, "Operation not supported");
     }
+}
+
+void esp32_print_error(esp32_device_t* device, char* reason){
+    puts("\x1b[31m");
+    printf("\nERROR: %s\n", reason);
+    std::cout << "PC    : 0x" << std::hex << device->program_counter << std::endl;
+    std::cout << "INSTR : 0x" << std::hex << device->instruction << std::endl;
+    std::cout << "        24   20   16   12    8    4    0" << std::endl;
+    std::cout << "        |    |    |    |    |    |    |" << std::endl;
+    std::cout << "        "
+            << " " << std::bitset<4>((device->instruction >> 20) &0xf)
+            << " " << std::bitset<4>((device->instruction >> 16) &0xf)
+            << " " << std::bitset<4>((device->instruction >> 12) &0xf)
+            << " " << std::bitset<4>((device->instruction >>  8) &0xf)
+            << " " << std::bitset<4>((device->instruction >>  4) &0xf)
+            << " " << std::bitset<4>((device->instruction >>  0) &0xf) << std::endl;
+    printf("Stacktrace:\n");
+    for(uint32_t element : device->stacktrace){
+        printf("    %#08x\n", element);
+    }
+    exit(1);
 }
 
 

@@ -1,2 +1,3 @@
 #!/bin/bash
-cmake . && make && ./esp32-emulator --show-instructions
+cmake . && make
+./esp32-emulator --show-instructions

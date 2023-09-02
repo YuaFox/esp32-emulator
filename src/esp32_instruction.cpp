@@ -43,6 +43,7 @@ void esp32_instruction_RETW(esp32_device_t* device){
         puts("\x1b[31mWRONG RETW");
         exit(0);
     }
+    device->stacktrace.pop_back();
     device->ps_owb = device->special[ESP32_REG_WINDOWBASE];
     device->program_counter = (device->program_counter >> 30 << 30) | (esp32_register_a_read(device, 0) & 0x3fffffff);
     device->special[ESP32_REG_WINDOWBASE] = device->special[ESP32_REG_WINDOWBASE] - n;
@@ -537,8 +538,9 @@ void esp32_instruction_BNEI(esp32_device_t* device){
 }
 
 void esp32_instruction_ENTRY(esp32_device_t* device){
+    device->stacktrace.push_back(device->program_counter);
     device->temp = (device->instruction >> 8) & 0xf;
-    if(device->print_instr) printf("ENTRY a%i %#01x\n", device->temp, device->instruction >> 12 << 3);
+    if(device->print_instr) printf("ENTRY a%i %#01x     ; ", device->temp, device->instruction >> 12 << 3);
     if(device->temp > 3){
         std::cout << "ENTRY ERROR: AS > 3" << std::endl;
         exit(0);
@@ -552,6 +554,8 @@ void esp32_instruction_ENTRY(esp32_device_t* device){
     device->special[ESP32_REG_WINDOWSTART] |= 1 << device->special[ESP32_REG_WINDOWBASE];
     device->program_counter += 3;
     device->call_depth++;
+
+    if(device->print_instr) printf("STACK = %#08x\n", esp32_register_a_read(device, device->temp));
 }
 
 void esp32_instruction_BLTUI(esp32_device_t* device){
@@ -694,7 +698,7 @@ void esp32_instruction_BNE(esp32_device_t* device){
 
 
 void esp32_instruction_BGE(esp32_device_t* device){
-    if(device->print_instr) printf("BGEU a%i, a%i, %#01x   ; ", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, device->instruction >> 16);
+    if(device->print_instr) printf("BGE a%i, a%i, %#01x   ; ", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, device->instruction >> 16);
 
     if((int32_t) esp32_register_a_read(device, device->instruction >> 4 & 0xf) >= (int32_t) esp32_register_a_read(device, device->instruction >> 8 & 0xf)){
         device->temp = device->instruction >> 16;
@@ -710,9 +714,9 @@ void esp32_instruction_BGE(esp32_device_t* device){
 }
 
 void esp32_instruction_BGEU(esp32_device_t* device){
-    if(device->print_instr) printf("BGEU a%i, a%i, %#01x   ; ", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, device->instruction >> 16);
+    if(device->print_instr) printf("BGEU a%i, a%i, %#01x   ; [ %#01x >= %#01x ]", (device->instruction >> 8) & 0x0f, (device->instruction >> 4) & 0x0f, device->instruction >> 16, esp32_register_a_read(device, device->instruction >> 8 & 0xf), esp32_register_a_read(device, device->instruction >> 4 & 0xf));
 
-    if(esp32_register_a_read(device, device->instruction >> 4 & 0xf) >= esp32_register_a_read(device, device->instruction >> 8 & 0xf)){
+    if(esp32_register_a_read(device, device->instruction >> 8 & 0xf) >= esp32_register_a_read(device, device->instruction >> 4 & 0xf)){
         device->temp = device->instruction >> 16;
         if(device->temp >> 7 & 1 == 1){
             device->temp |= 0xffffff << 8;
@@ -1180,6 +1184,11 @@ void esp32_instruction_init(){
         esp32_instruction_MOVIN,
         0b1100,     0xf,  0,
         0b00,       0b11,  6
+    );
+    esp32_instruction_register(
+        esp32_instruction_MOVIN,
+        0b1100,     0xf,  0,
+        0b01,       0b11,  6
     );
     esp32_instruction_register(
         esp32_instruction_BEQZN,
