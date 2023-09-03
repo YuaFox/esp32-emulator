@@ -20,6 +20,8 @@ void ets_printf(esp32_device_t* device){
             printf(buffer, esp32_register_a_read(device, reg++));
         }else if(strncmp(buffer, "%s", 2) == 0){
             printf(buffer, &device->memory[esp32_register_a_read(device, reg++)]);
+        }else if(strncmp(buffer, "%08x", 2) == 0){
+            printf(buffer, esp32_register_a_read(device, reg++));
         }else{
             fputs(buffer, stdout);
         }

@@ -14,9 +14,30 @@ int esp32_run(esp32_device_t* device){
     bool stop = false;
 
     while(device->call_depth > start_depth){
-        if(device->program_counter == 0x4008a3a8){
+        
+        //stop = true;
+        /*
+        if(device->program_counter == 0x400d257c+3){ // s_prepare_reserved_regions
+            for(int i = 0; i < 8; i++){
+                printf("%i %x\n", i, esp32_register_a_read(device, i));
+            }
             stop = true;
-            esp32_print_error(device, "Assert failed");
+        }
+        */
+
+       if(device->program_counter == 0x4008a3a8){
+            esp32_print_error(device, "Assert failed. Aborting...");
+        }
+
+        if(device->program_counter == 0x400d263c){
+            printf("soc_get_available_memory_regions(0x%x)\n", esp32_register_a_read(device, 10));
+        }
+
+        
+        
+
+        if(device->program_counter == 0x400d257c){
+            printf("s_prepare_reserved_regions(0x%x %i)\n", esp32_register_a_read(device, 10), esp32_register_a_read(device, 11));
         }
         
         esp32_binding_map::iterator it = esp32_bindings.find(device->program_counter);
@@ -141,5 +162,20 @@ void esp32_memory_write32(esp32_device_t* device, uint32_t val){
     device->memory[device->pAddr+2] = val >> 16 & 0xff;
     device->memory[device->pAddr+1] = val >> 8 & 0xff;
     device->memory[device->pAddr+0] = val >> 0 & 0xff;
+}
+
+
+void esp32_memory_swap32(esp32_device_t* device, uint32_t vAddr1, uint32_t vAddr2, uint32_t amount){
+    uint32_t v1 = 0;
+    uint32_t v2 = 0;
+    for(int i = 0; i < amount; i++){
+        device->vAddr = vAddr1 + i*4;
+        v1 = esp32_memory_load32(device);
+        device->vAddr = vAddr2 + i*4;
+        v2 = esp32_memory_load32(device);
+        esp32_memory_write32(device, v1);
+        device->vAddr = vAddr1 + i*4;
+        esp32_memory_write32(device, v2);
+    }
 }
 

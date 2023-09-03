@@ -64,4 +64,6 @@ void esp32_memory_write8(esp32_device_t* device, uint8_t val);
 void esp32_memory_write16(esp32_device_t* device, uint16_t val);
 void esp32_memory_write32(esp32_device_t* device, uint32_t val);
 
+void esp32_memory_swap32(esp32_device_t* device, uint32_t vAddr1, uint32_t vAddr2, uint32_t amount);
+
 #endif
