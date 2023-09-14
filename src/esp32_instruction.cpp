@@ -373,7 +373,7 @@ void esp32_instruction_L32I(esp32_device_t* device){
 void esp32_instruction_S8I(esp32_device_t* device){
     if(device->print_instr) printf("S8I a%i, a%i, %#01x ", device->instruction >> 4 & 0xf, device->instruction >> 8 & 0xf, device->instruction >> 16);
     device->vAddr = esp32_register_a_read(device, device->instruction >> 8 & 0xf) + (device->instruction >> 16 << 0);
-    esp32_memory_write8(device, esp32_register_a_read(device, device->instruction >> 8 & 0xf) & 0x7f);
+    esp32_memory_write8(device, esp32_register_a_read(device, device->instruction >> 4 & 0xf) & 0x7f);
     device->program_counter += 3;
     if(device->print_instr) printf("   ; mem[%#01x] = %#01x\n", device->vAddr, esp32_memory_load8(device));
 }
@@ -455,8 +455,20 @@ void esp32_instruction_BEQZ(esp32_device_t* device){
         device->program_counter += device->temp + 4;
     }else{
         device->program_counter += 3;
-    }
-    
+    } 
+}
+
+void esp32_instruction_BNEZ(esp32_device_t* device){
+    if(device->print_instr) printf("BNEZ a%i\n", device->instruction >> 8 & 0xf);
+    if(esp32_register_a_read(device, device->instruction >> 8 & 0xf) != 0){
+        device->temp = device->instruction >> 12;
+        if(device->temp >> 11 & 1 == 1){
+            device->temp |= 0xffffff << 12;
+        }
+        device->program_counter += device->temp + 4;
+    }else{
+        device->program_counter += 3;
+    } 
 }
 
 void esp32_instruction_BEQI(esp32_device_t* device){
@@ -763,12 +775,12 @@ void esp32_instruction_BGEU(esp32_device_t* device){
 
 
 void esp32_instruction_L32IN(esp32_device_t* device){
-    if(device->print_instr) printf("L32IN a%i, a%i, %#01x", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, (device->instruction >> 12) & 0x0f);
+    if(device->print_instr) printf("L32I.N a%i, a%i, %#01x", (device->instruction >> 4) & 0x0f, (device->instruction >> 8) & 0x0f, (device->instruction >> 12 & 0xf) << 2);
     device->temp = esp32_register_a_read(
         device,
         (device->instruction >> 8) & 0x0f
     );
-    device->vAddr = device->temp + (((device->instruction >> 12) & 0x0f) << 2);
+    device->vAddr = device->temp + ((device->instruction >> 12 & 0x0f) << 2);
     esp32_register_a_write(
         device,
         (device->instruction >> 4) & 0x0f,
@@ -796,7 +808,7 @@ void esp32_instruction_ADDN(esp32_device_t* device){
 }
 
 void esp32_instruction_ADDIN(esp32_device_t* device){
-    if(device->instruction >> 4 & 0xf == 0){
+    if(device->instruction >> 4 & 0xf != 0){
         esp32_register_a_write(
             device,
             device->instruction >> 12 & 0xf,
@@ -1117,6 +1129,12 @@ void esp32_instruction_init(){
         0b0110,     0xf,    0,
         0b01,       0b11,   4,
         0b00,       0b11,   6
+    );
+    esp32_instruction_register(
+        esp32_instruction_BNEZ,
+        0b0110,     0xf,    0,
+        0b01,       0b11,   4,
+        0b01,       0b11,   6
     );
     esp32_instruction_register(
         esp32_instruction_BEQI,

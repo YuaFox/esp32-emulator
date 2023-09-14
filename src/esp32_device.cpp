@@ -91,6 +91,7 @@ void esp32_print_error(esp32_device_t* device, char* reason){
             << " " << std::bitset<4>((device->instruction >>  8) &0xf)
             << " " << std::bitset<4>((device->instruction >>  4) &0xf)
             << " " << std::bitset<4>((device->instruction >>  0) &0xf) << std::endl;
+    printf("a2: %#08x a10: %#08x\n", esp32_register_a_read(device, 2),  esp32_register_a_read(device, 10));
     printf("Stacktrace:\n");
     for(uint32_t element : device->stacktrace){
         printf("    %#08x\n", element);
